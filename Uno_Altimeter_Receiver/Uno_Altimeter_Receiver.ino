@@ -12,10 +12,22 @@ Adafruit_BMP085_Unified bmp = Adafruit_BMP085_Unified(10085);
 Adafruit_LiquidCrystal lcd(0);
 // Radio
 SoftwareSerial rocketSerial(2, 3);
+// Counter that needs to be outside of the loop
+int target_count = 0;
+// rocket fired?
+int rocket_stat = 0;
+// receiving from rocket?
+int receive_flag = 0;
 
 
 // Reduce clutter for LCD update
-void printLCD(String curr_time, String alt, int rocket_stat){
+void printLCD(String curr_time, String alt, String alt_r){
+
+  if (alt.length() == 2)
+    alt = "  " + alt;
+  if (alt.length() == 3)
+    alt = " " + alt;
+  
   lcd.setCursor(0,1);
   lcd.print("A:");
   lcd.setCursor(2,1);
@@ -25,8 +37,8 @@ void printLCD(String curr_time, String alt, int rocket_stat){
 
   lcd.setCursor(9,0);
   lcd.print("R:");
-  lcd.setCursor(15,1);
-  lcd.print(String(rocket_stat));
+  lcd.setCursor(10,1);
+  lcd.print(alt_r);
 
   lcd.setCursor(0,0);
   lcd.print("T:");
@@ -38,7 +50,7 @@ void printLCD(String curr_time, String alt, int rocket_stat){
 void setup(void) 
 {
   Serial.begin(9600);
-  Serial.println("Pres Test"); Serial.println("");
+  Serial.println("Receiver"); Serial.println("");
 
   /* Initialize lcd */
   lcd.begin(16, 2);
@@ -68,8 +80,7 @@ void setup(void)
  
 void loop(void) {
   // launch altitude in meters
-  int TARGETALT = 7500;
-  int target_count = 0;
+  int TARGETALT = 65;
 
   // local altitude 
   float alt_l = 0;
@@ -77,17 +88,12 @@ void loop(void) {
   
   // rocket altitude
   int alt_r = 0;
-  String alt_r_str = "";
+  String alt_r_str = "0";
   
   // local stats
   String temp = "";
   String pres = "";
   
-  // rocket fired?
-  int rocket_stat = 0;
-  
-  // receiving from rocket?
-  int receive_flag = 0;
   String rocket_input = "";
 
   // pressure sensor get event
@@ -97,6 +103,7 @@ void loop(void) {
   /* Update local altitude */
   if (event.pressure) {
     /* Display atmospheric pressue in hPa */
+    Serial.println("");
     Serial.print("Pres:    ");
     pres = String(event.pressure);
     Serial.print(event.pressure);
@@ -118,11 +125,10 @@ void loop(void) {
     alt_l_str = String(alt_l,0);
     Serial.print(alt_l_str);
     Serial.println(" m");
-    Serial.println("");
-    printLCD("[N/A]", alt_l_str, rocket_stat);
+    printLCD("[N/A]", alt_l_str, rocket_input);
   } else {
     Serial.println("Pres Err");
-    printLCD("ERR", alt_l_str, rocket_stat);
+    printLCD("ERR", alt_l_str, rocket_input);
   }
 
   /* Get rocket altitude */
@@ -130,7 +136,9 @@ void loop(void) {
     if(receive_flag == 0){
       // first received signal from rocket!
       rocket_input = rocketSerial.readString();
-      if(rocket_input == "sending") {
+      Serial.println("IN: " + rocket_input);
+      if(rocket_input.equals("sending")) {
+        Serial.println("LAUNCH");
         // LAUNCH_THE_ROCKET();
         rocket_stat = 1;
         receive_flag = 1;
@@ -145,16 +153,17 @@ void loop(void) {
     // 10 in a row...
     if (alt_l > TARGETALT) { 
       target_count++;
-      Serial.print("target " + String(target_count));
+      Serial.println("target " + String(target_count));
     }
     else { target_count = 0; }
-    if (target_count > 10) {
+    if (target_count == 10) {
       rocketSerial.print("start");
     }
   }
 
+  printLCD("[N/A]", alt_l_str, rocket_input);
   
-  String dataString = "t: [N/A], Alt: " + alt_l_str + ", Temp: " + temp + " Pres: " + pres + " RAlt: " + rocket_input;
+  String dataString = "t: [N/A], Alt: " + String(alt_l,2) + ", Temp: " + temp + " Pres: " + pres + " RAlt: " + rocket_input;
 
   // open the file. note that only one file can be open at a time,
   // so you have to close this one before opening another.
@@ -173,5 +182,5 @@ void loop(void) {
     Serial.println("file err");
   }
   
-  delay(1000);
+  delay(500);
 }
