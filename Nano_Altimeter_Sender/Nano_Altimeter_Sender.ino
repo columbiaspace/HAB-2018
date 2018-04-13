@@ -28,7 +28,7 @@ void loop() {
   if(rocketSerial.available() > 1 && !send_flag) {
     String rocket_input = rocketSerial.readString();
     Serial.println("input="+rocket_input);
-    if(send_flag == 0 && rocket_input.equals("start")){
+    if(send_flag == 0){
       Serial.println("start sig");
       send_flag = 1;
       rocketSerial.print("sending");

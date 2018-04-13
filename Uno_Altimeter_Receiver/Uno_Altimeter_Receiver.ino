@@ -16,6 +16,7 @@ SoftwareSerial rocketSerial(2, 3);
 int target_count = 0;
 // rocket fired?
 int rocket_stat = 0;
+
 // receiving from rocket?
 int receive_flag = 0;
 
@@ -80,7 +81,7 @@ void setup(void)
  
 void loop(void) {
   // launch altitude in meters
-  int TARGETALT = 65;
+  int TARGETALT = 50;
 
   // local altitude 
   float alt_l = 0;
@@ -137,15 +138,12 @@ void loop(void) {
       // first received signal from rocket!
       rocket_input = rocketSerial.readString();
       Serial.println("IN: " + rocket_input);
-      if(rocket_input.equals("sending")) {
-        Serial.println("LAUNCH");
-        // LAUNCH_THE_ROCKET();
-        rocket_stat = 1;
-        receive_flag = 1;
-      } else {
-        // go around...
-      }
+      Serial.println("LAUNCH");
+      // LAUNCH_THE_ROCKET();
+      rocket_stat = 1;
+      receive_flag = 1;
     } else {
+      // non-first received signal from rocket
       rocket_input = rocketSerial.readString();
       Serial.println("IN: " + rocket_input);
     }
