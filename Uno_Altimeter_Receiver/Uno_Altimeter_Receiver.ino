@@ -5,6 +5,8 @@
 #include <Adafruit_BMP085_U.h>
 #include <Adafruit_LiquidCrystal.h>
 #include <SoftwareSerial.h>
+#include <Time.h>
+#include <DS1307RTC.h>
 
 // Altitude Sensor
 Adafruit_BMP085_Unified bmp = Adafruit_BMP085_Unified(10085);
@@ -19,6 +21,9 @@ int rocket_stat = 0;
 
 // receiving from rocket?
 int receive_flag = 0;
+
+// time
+tmElements_t tm;
 
 
 // Reduce clutter for LCD update
@@ -47,11 +52,33 @@ void printLCD(String curr_time, String alt, String alt_r){
   lcd.print(curr_time);
 }
 
+String to2digits(int number) {
+  String num = String(number);
+  if (number >= 0 && number < 10) {
+    num = '0' + num;
+  }
+  return num;
+}
+
+String getTime(tmElements_t tm) {
+  String output = "";
+  if (RTC.read(tm)) {
+    String temp = "";
+    temp = to2digits(tm.Hour);
+    output = output + temp;
+    temp = to2digits(tm.Minute);
+    output = output + temp;
+    temp = to2digits(tm.Second);
+    output = output + temp;
+  }
+  return output;
+}
  
-void setup(void) 
-{
+void setup(void) {
+  tmElements_t tm;
   Serial.begin(9600);
-  Serial.println("Receiver"); Serial.println("");
+  while (!Serial) ;
+  Serial.println("RX"); Serial.println("");
 
   /* Initialize lcd */
   lcd.begin(16, 2);
@@ -60,23 +87,40 @@ void setup(void)
   /* Initialize the sensor */
   if(!bmp.begin()) {
     /* There was a problem detecting the BMP085 ... check your connections */
-    Serial.print("No BMP085");
+    Serial.print("aErr");
     return;
   }
 
   /* Initialize SD card */
-  Serial.print("Init SD");
+  Serial.print("SD");
   // see if the card is present and can be initialized:
   if (!SD.begin(8)) {
-    Serial.println("Card fail");
+    Serial.println("Fail");
     return;
   }
-  Serial.println("card init.");
+  Serial.println("Init");
 
   /* Initialize radio */
-  Serial.print("Init Radio");
+  Serial.print("Radio");
   rocketSerial.begin(1200);
-  
+  while (!rocketSerial) ;
+
+  /* Print header line */
+  File dataFile = SD.open("datalog.txt", FILE_WRITE);
+  String headerString = "time, b_alt, temp, pres, r_alt";
+  // if the file is available, write to it:
+  if (dataFile) {
+    dataFile.println(headerString);
+    dataFile.close();
+    // print to the serial port too:
+    Serial.println(headerString);
+    
+  }
+  // if the file isn't open, pop up an error:
+  else {
+    Serial.println("f_err");
+  }
+
 }
  
 void loop(void) {
@@ -89,12 +133,11 @@ void loop(void) {
   
   // rocket altitude
   int alt_r = 0;
-  String alt_r_str = "0";
+  String alt_r_str = "-1";
   
   // local stats
   String temp = "";
   String pres = "";
-  
   String rocket_input = "";
 
   // pressure sensor get event
@@ -123,6 +166,7 @@ void loop(void) {
     float seaLevelPressure = SENSORS_PRESSURE_SEALEVELHPA;
     Serial.print("Alt:    "); 
     alt_l = bmp.pressureToAltitude(seaLevelPressure,event.pressure,temperature);
+    // Altitude as string
     alt_l_str = String(alt_l,0);
     Serial.print(alt_l_str);
     Serial.println(" m");
@@ -138,7 +182,7 @@ void loop(void) {
       // first received signal from rocket!
       rocket_input = rocketSerial.readString();
       Serial.println("IN: " + rocket_input);
-      Serial.println("LAUNCH");
+      Serial.println("L");
       // LAUNCH_THE_ROCKET();
       rocket_stat = 1;
       receive_flag = 1;
@@ -151,21 +195,21 @@ void loop(void) {
     // 10 in a row...
     if (alt_l > TARGETALT) { 
       target_count++;
-      Serial.println("target " + String(target_count));
+      Serial.println("tgt" + String(target_count));
     }
     else { target_count = 0; }
-    if (target_count == 10) {
-      rocketSerial.print("start");
+    if (target_count >= 10) {
+      rocketSerial.print("strt");
     }
   }
 
-  printLCD("[N/A]", alt_l_str, rocket_input);
-  
-  String dataString = "t: [N/A], Alt: " + String(alt_l,2) + ", Temp: " + temp + " Pres: " + pres + " RAlt: " + rocket_input;
+  String curr_time = getTime(tm);
+  printLCD(curr_time, alt_l_str, rocket_input);
+  String dataString = "t, "+curr_time+", a, " + String(alt_l,2) + ", Temp: " + temp + " Pres: " + pres + " RAlt: " + rocket_input;
 
   // open the file. note that only one file can be open at a time,
   // so you have to close this one before opening another.
-  File dataFile = SD.open("datalog.txt", FILE_WRITE);
+  File dataFile = SD.open("d.txt", FILE_WRITE);
 
   // if the file is available, write to it:
   if (dataFile) {
@@ -177,8 +221,8 @@ void loop(void) {
   }
   // if the file isn't open, pop up an error:
   else {
-    Serial.println("file err");
+    Serial.println("f_err");
   }
   
-  delay(500);
+  delay(1000);
 }
