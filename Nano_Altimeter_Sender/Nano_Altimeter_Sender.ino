@@ -10,6 +10,7 @@ SoftwareSerial rocketSerial(2, 3);
 int send_flag = 0;
 
 void setup() {
+  pinMode(13, OUTPUT);
   // put your setup code here, to run once:
   Serial.begin(9600);
   rocketSerial.begin(1200);
@@ -18,9 +19,7 @@ void setup() {
   if (! baro.begin()) {
     Serial.println("no sensor");
     while(1) {
-      digitalWrite(13, HIGH);
-      delay(100);
-      digitalWrite(13, LOW);
+      Serial.println("err");
       delay(100);
     }
   }

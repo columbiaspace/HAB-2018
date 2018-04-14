@@ -75,6 +75,7 @@ String getTime(tmElements_t tm) {
 }
  
 void setup(void) {
+  int errflag = 0;
   tmElements_t tm;
   Serial.begin(9600);
   while (!Serial) ;
@@ -87,23 +88,22 @@ void setup(void) {
   /* Initialize the sensor */
   if(!bmp.begin()) {
     /* There was a problem detecting the BMP085 ... check your connections */
+    errflag = 1;
     Serial.print("aErr");
-    return;
   }
 
   /* Initialize SD card */
   Serial.print("SD");
   // see if the card is present and can be initialized:
   if (!SD.begin(8)) {
+    errflag = 1;
     Serial.println("Fail");
-    return;
   }
   Serial.println("Init");
 
   /* Initialize radio */
   Serial.print("Radio");
   rocketSerial.begin(1200);
-  while (!rocketSerial) ;
 
   /* Print header line */
   File dataFile = SD.open("datalog.txt", FILE_WRITE);
@@ -118,7 +118,16 @@ void setup(void) {
   }
   // if the file isn't open, pop up an error:
   else {
+    errflag = 1;
     Serial.println("f_err");
+  }
+
+  if(errflag) {
+    pinMode(13, OUTPUT);
+    while(1) {
+      Serial.println("err");
+      delay(100);
+    }
   }
 
 }
@@ -205,7 +214,7 @@ void loop(void) {
 
   String curr_time = getTime(tm);
   printLCD(curr_time, alt_l_str, rocket_input);
-  String dataString = "t, "+curr_time+", a, " + String(alt_l,2) + ", Temp: " + temp + " Pres: " + pres + " RAlt: " + rocket_input;
+  String dataString = "t, "+curr_time+", alt, " + String(alt_l,2) + ", tmp, " + temp + ", prs, " + pres + ", ra, " + rocket_input;
 
   // open the file. note that only one file can be open at a time,
   // so you have to close this one before opening another.
